@@ -1,24 +1,9 @@
 -- THIS UI IS ORIGINALLY MADE BY ESORE
--- THIS IS A MODIFIED SIMPLELIB
-
---[[
- .oooooo..o ooooo ooo        ooooo ooooooooo.   ooooo        oooooooooooo      ooooo        ooooo oooooooooo.  
-d8P'    `Y8 `888' `88.       .888' `888   `Y88. `888'        `888'     `8      `888'        `888' `888'   `Y8b 
-Y88bo.       888   888b     d'888   888   .d88'  888          888               888          888   888     888 
- `"Y8888o.   888   8 Y88. .P  888   888ooo88P'   888          888oooo8          888          888   888oooo888' 
-     `"Y88b  888   8  `888'   888   888          888          888    "          888          888   888    `88b 
-oo     .d8P  888   8    Y     888   888          888       o  888       o       888       o  888   888    .88P 
-8""88888P'  o888o o8o        o888o o888o        o888ooooood8 o888ooooood8      o888ooooood8 o888o o888bood8P'  
-
-=====               LIB ENHANCED & RESIZABLE VERSION                =====
-===== ORIGINAL BY ESORE | ENHANCED WITH RED THEME & RESIZING =====
-
-Feel free to make changes to this library, Just don't take full credit or you are a dog.
-]]
+-- EXTENSIVELY ENHANCED, OPTIMIZED & RESIZABLE VERSION
 
 local SimpleLib = {}
 
--->>: SERVICES
+-->> SERVICES
 local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -31,69 +16,84 @@ local BG_DARK = Color3.fromRGB(25, 25, 35)
 local BG_MEDIUM = Color3.fromRGB(40, 40, 55)
 local TEXT_COLOR = Color3.fromRGB(255, 255, 255)
 
+-- HELPER TWEEN FUNCTION
+local function fastTween(object, info, properties)
+    local t = TweenService:Create(object, info, properties)
+    t:Play()
+    return t
+end
+
 function SimpleLib:Window(winName)
     local sliderInUse = false
     local isResizing = false
     local resizeStart = nil
     local resizeStartSize = nil
+    local activeConnections = {}
 
-    local function dragify(Frame)
-        local dragToggle = nil
-        local dragInput = nil
-        local dragStart = nil
-        local startPos = nil
+    local function trackConnection(conn)
+        table.insert(activeConnections, conn)
+        return conn
+    end
 
-        local function updateInput(input)
-            local Delta = input.Position - dragStart
-            local Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + Delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + Delta.Y
-            )
-            TweenService:Create(Frame, TweenInfo.new(0.15), {Position = Position}):Play()
+    local function cleanupConnections()
+        for _, conn in ipairs(activeConnections) do
+            if conn then conn:Disconnect() end
         end
+        table.clear(activeConnections)
+    end
 
-        Frame.InputBegan:Connect(function(input)
+    -- Smooth Drag Engine
+    local function dragify(Frame)
+        local dragToggle, dragInput, dragStart, startPos
+        
+        trackConnection(Frame.InputBegan:Connect(function(input)
             if sliderInUse or isResizing then return end
-
             if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) 
             and UIS:GetFocusedTextBox() == nil then
                 dragToggle = true
                 dragStart = input.Position
                 startPos = Frame.Position
-                input.Changed:Connect(function()
+                
+                trackConnection(input.Changed:Connect(function()
                     if input.UserInputState == Enum.UserInputState.End then
                         dragToggle = false
                     end
-                end)
+                end))
             end
-        end)
+        end))
 
-        Frame.InputChanged:Connect(function(input)
+        trackConnection(Frame.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
                 dragInput = input
             end
-        end)
+        end))
 
-        UIS.InputChanged:Connect(function(input)
+        trackConnection(UIS.InputChanged:Connect(function(input)
             if input == dragInput and dragToggle then
-                updateInput(input)
+                local Delta = input.Position - dragStart
+                local Position = UDim2.new(
+                    startPos.X.Scale, startPos.X.Offset + Delta.X,
+                    startPos.Y.Scale, startPos.Y.Offset + Delta.Y
+                )
+                fastTween(Frame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = Position})
             end
-        end)
+        end))
     end
 
+    -- Smooth Resize Engine
     local function setupResize(Frame)
         local ResizeHandle = Instance.new("Frame")
         ResizeHandle.Name = "ResizeHandle"
-        ResizeHandle.Size = UDim2.new(0, 20, 0, 20)
-        ResizeHandle.Position = UDim2.new(1, -20, 1, -20)
+        ResizeHandle.Size = UDim2.new(0, 18, 0, 18)
+        ResizeHandle.Position = UDim2.new(1, -6, 1, -6)
         ResizeHandle.AnchorPoint = Vector2.new(1, 1)
         ResizeHandle.BackgroundColor3 = RED_ACCENT
         ResizeHandle.BorderSizePixel = 0
-        ResizeHandle.Parent = Frame
         ResizeHandle.ZIndex = 100
+        ResizeHandle.Parent = Frame
 
         local Corner = Instance.new("UICorner")
-        Corner.CornerRadius = UDim.new(0, 6)
+        Corner.CornerRadius = UDim.new(0, 4)
         Corner.Parent = ResizeHandle
 
         local Icon = Instance.new("TextLabel")
@@ -101,51 +101,51 @@ function SimpleLib:Window(winName)
         Icon.BackgroundTransparency = 1
         Icon.Text = "⤡"
         Icon.TextColor3 = TEXT_COLOR
-        Icon.TextSize = 14
+        Icon.TextSize = 12
         Icon.Font = Enum.Font.GothamBold
         Icon.Parent = ResizeHandle
 
-        ResizeHandle.InputBegan:Connect(function(input)
+        trackConnection(ResizeHandle.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 isResizing = true
                 resizeStart = input.Position
                 resizeStartSize = Frame.Size
             end
-        end)
+        end))
 
-        UIS.InputChanged:Connect(function(input)
+        trackConnection(UIS.InputChanged:Connect(function(input)
             if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                 local Delta = input.Position - resizeStart
-                local newWidth = math.max(300, resizeStartSize.X.Offset + Delta.X)
+                local newWidth = math.max(350, resizeStartSize.X.Offset + Delta.X)
                 local newHeight = math.max(280, resizeStartSize.Y.Offset + Delta.Y)
                 Frame.Size = UDim2.new(0, newWidth, 0, newHeight)
             end
-        end)
+        end))
 
-        UIS.InputEnded:Connect(function(input)
+        trackConnection(UIS.InputEnded:Connect(function(input)
             if isResizing and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
                 isResizing = false
             end
-        end)
+        end))
 
-        ResizeHandle.MouseEnter:Connect(function()
-            ResizeHandle.BackgroundColor3 = RED_LIGHT
-        end)
+        trackConnection(ResizeHandle.MouseEnter:Connect(function()
+            fastTween(ResizeHandle, TweenInfo.new(0.2), {BackgroundColor3 = RED_LIGHT})
+        end))
 
-        ResizeHandle.MouseLeave:Connect(function()
-            ResizeHandle.BackgroundColor3 = RED_ACCENT
-        end)
+        trackConnection(ResizeHandle.MouseLeave:Connect(function()
+            fastTween(ResizeHandle, TweenInfo.new(0.2), {BackgroundColor3 = RED_ACCENT})
+        end))
     end
 
+    -- Windows Instantiation
     local MainGUI = Instance.new("ScreenGui")
     MainGUI.IgnoreGuiInset = true
     MainGUI.Parent = CoreGui
 
     local MainBG = Instance.new("Frame")
     MainBG.Name = "MainBG"
-    MainBG.Position = UDim2.new(0.15, 0, 0.2, 0)
-    MainBG.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    MainBG.Size = UDim2.new(0, 500, 0, 400)
+    MainBG.Position = UDim2.new(0.3, 0, 0.3, 0)
+    MainBG.Size = UDim2.new(0, 520, 0, 400)
     MainBG.BorderSizePixel = 0
     MainBG.BackgroundColor3 = BG_DARK
     MainBG.Parent = MainGUI
@@ -159,44 +159,39 @@ function SimpleLib:Window(winName)
     UIGradient.Parent = MainBG
 
     local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 16)
+    UICorner.CornerRadius = UDim.new(0, 12)
     UICorner.Parent = MainBG
 
     local UIStroke = Instance.new("UIStroke")
     UIStroke.Color = RED_ACCENT
-    UIStroke.Thickness = 2
+    UIStroke.Thickness = 1.5
     UIStroke.Parent = MainBG
 
     local SectionContainer = Instance.new("Frame")
-    SectionContainer.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    SectionContainer.AnchorPoint = Vector2.new(0.5, 0.5)
-    SectionContainer.BackgroundTransparency = 0.3
-    SectionContainer.Position = UDim2.new(0.5, 0, 0.55, 0)
     SectionContainer.Name = "SectionContainer"
-    SectionContainer.Size = UDim2.new(0.95, 0, 0.8, 0)
-    SectionContainer.BorderSizePixel = 0
     SectionContainer.BackgroundColor3 = BG_MEDIUM
+    SectionContainer.BackgroundTransparency = 0.2
+    SectionContainer.BorderSizePixel = 0
+    -- Fluid scaling mapping adjustments
+    SectionContainer.Position = UDim2.new(0, 12, 0, 45)
+    SectionContainer.Size = UDim2.new(1, -24, 1, -57)
     SectionContainer.Parent = MainBG
 
     local UICorner2 = Instance.new("UICorner")
-    UICorner2.CornerRadius = UDim.new(0, 14)
+    UICorner2.CornerRadius = UDim.new(0, 10)
     UICorner2.Parent = SectionContainer
 
     local TabsContainer = Instance.new("Frame")
-    TabsContainer.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    TabsContainer.AnchorPoint = Vector2.new(0.5, 0)
-    TabsContainer.BackgroundTransparency = 1
-    TabsContainer.Position = UDim2.new(0.5, 0, 0, 0)
     TabsContainer.Name = "TabsContainer"
-    TabsContainer.Size = UDim2.new(1, 0, 0, 38)
-    TabsContainer.BorderSizePixel = 0
-    TabsContainer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    TabsContainer.BackgroundTransparency = 1
+    TabsContainer.Position = UDim2.new(0, 0, 0, 0)
+    TabsContainer.Size = UDim2.new(1, 0, 0, 36)
     TabsContainer.Parent = SectionContainer
 
     local UIListLayout = Instance.new("UIListLayout")
     UIListLayout.FillDirection = Enum.FillDirection.Horizontal
     UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    UIListLayout.Padding = UDim.new(0, 4)
+    UIListLayout.Padding = UDim.new(0, 6)
     UIListLayout.Parent = TabsContainer
 
     local Padding = Instance.new("UIPadding")
@@ -205,128 +200,80 @@ function SimpleLib:Window(winName)
     Padding.Parent = TabsContainer
 
     local Divider = Instance.new("Frame")
-    Divider.AnchorPoint = Vector2.new(0.5, 0)
     Divider.Name = "Divider"
-    Divider.Position = UDim2.new(0.5, 0, 0.09, 0)
-    Divider.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    Divider.Position = UDim2.new(0, 8, 0, 36)
     Divider.Size = UDim2.new(1, -16, 0, 2)
     Divider.BorderSizePixel = 0
     Divider.BackgroundColor3 = RED_ACCENT
     Divider.Parent = SectionContainer
 
     local Header = Instance.new("TextLabel")
-    Header.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    Header.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    Header.AnchorPoint = Vector2.new(0, 0.5)
-    Header.TextSize = 18
-    Header.Size = UDim2.new(0, 300, 0, 26)
-    Header.TextColor3 = RED_ACCENT
-    Header.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    Header.Text = winName
     Header.Name = "Header"
-    Header.TextWrapped = true
-    Header.BackgroundTransparency = 1
+    Header.Text = winName
+    Header.Font = Enum.Font.GothamBold
+    Header.TextSize = 16
+    Header.TextColor3 = TEXT_COLOR
     Header.TextXAlignment = Enum.TextXAlignment.Left
-    Header.Position = UDim2.new(0.04, 0, 0.065, 0)
-    Header.BorderSizePixel = 0
-    Header.TextScaled = false
-    Header.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Header.BackgroundTransparency = 1
+    Header.Position = UDim2.new(0, 16, 0, 10)
+    Header.Size = UDim2.new(0.6, 0, 0, 24)
     Header.Parent = MainBG
 
     local CloseBtn = Instance.new("TextButton")
-    CloseBtn.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    CloseBtn.Active = false
-    CloseBtn.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    CloseBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-    CloseBtn.TextSize = 16
-    CloseBtn.Size = UDim2.new(0, 28, 0, 28)
-    CloseBtn.TextColor3 = TEXT_COLOR
-    CloseBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    CloseBtn.Text = "✕"
     CloseBtn.Name = "CloseBtn"
-    CloseBtn.Selectable = false
-    CloseBtn.TextWrapped = true
+    CloseBtn.Text = "✕"
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 14
+    CloseBtn.TextColor3 = TEXT_COLOR
     CloseBtn.BackgroundColor3 = RED_ACCENT
-    CloseBtn.BackgroundTransparency = 0
-    CloseBtn.Position = UDim2.new(0.96, 0, 0.065, 0)
-    CloseBtn.BorderSizePixel = 0
-    CloseBtn.TextScaled = false
+    CloseBtn.Position = UDim2.new(1, -36, 0, 10)
+    CloseBtn.Size = UDim2.new(0, 26, 0, 26)
     CloseBtn.Parent = MainBG
 
     local CloseBtnCorner = Instance.new("UICorner")
-    CloseBtnCorner.CornerRadius = UDim.new(0, 8)
+    CloseBtnCorner.CornerRadius = UDim.new(0, 6)
     CloseBtnCorner.Parent = CloseBtn
 
     local MinimizeBtn = Instance.new("TextButton")
-    MinimizeBtn.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    MinimizeBtn.Active = false
-    MinimizeBtn.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    MinimizeBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-    MinimizeBtn.TextSize = 16
-    MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
-    MinimizeBtn.TextColor3 = TEXT_COLOR
-    MinimizeBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    MinimizeBtn.Text = "−"
     MinimizeBtn.Name = "MinimizeBtn"
-    MinimizeBtn.Selectable = false
-    MinimizeBtn.TextWrapped = true
+    MinimizeBtn.Text = "−"
+    MinimizeBtn.Font = Enum.Font.GothamBold
+    MinimizeBtn.TextSize = 14
+    MinimizeBtn.TextColor3 = TEXT_COLOR
     MinimizeBtn.BackgroundColor3 = RED_ACCENT
-    MinimizeBtn.Position = UDim2.new(0.88, 0, 0.065, 0)
-    MinimizeBtn.BorderSizePixel = 0
-    MinimizeBtn.TextScaled = false
+    MinimizeBtn.Position = UDim2.new(1, -68, 0, 10)
+    MinimizeBtn.Size = UDim2.new(0, 26, 0, 26)
     MinimizeBtn.Parent = MainBG
 
     local MinimizeBtnCorner = Instance.new("UICorner")
-    MinimizeBtnCorner.CornerRadius = UDim.new(0, 8)
+    MinimizeBtnCorner.CornerRadius = UDim.new(0, 6)
     MinimizeBtnCorner.Parent = MinimizeBtn
 
     local HeaderBtn = Instance.new("TextButton")
-    HeaderBtn.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-    HeaderBtn.Active = false
-    HeaderBtn.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    HeaderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-    HeaderBtn.TextSize = 14
-    HeaderBtn.Size = UDim2.new(0, 200, 0, 26)
-    HeaderBtn.TextColor3 = TEXT_COLOR
-    HeaderBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    HeaderBtn.Text = winName
     HeaderBtn.Name = "HeaderBtn"
-    HeaderBtn.TextWrapped = true
+    HeaderBtn.Text = winName
+    HeaderBtn.Font = Enum.Font.GothamBold
+    HeaderBtn.TextSize = 14
+    HeaderBtn.TextColor3 = TEXT_COLOR
     HeaderBtn.BackgroundColor3 = RED_ACCENT
-    HeaderBtn.Position = UDim2.new(0.5, 0, 0.93, 0)
-    HeaderBtn.Selectable = false
-    HeaderBtn.BorderSizePixel = 0
-    HeaderBtn.TextScaled = true
-    HeaderBtn.Parent = MainGUI
+    HeaderBtn.Position = UDim2.new(0.5, -100, 1, -36)
+    HeaderBtn.Size = UDim2.new(0, 200, 0, 30)
     HeaderBtn.Visible = false
+    HeaderBtn.Parent = MainGUI
 
     local HeaderBtnCorner = Instance.new("UICorner")
-    HeaderBtnCorner.CornerRadius = UDim.new(0, 10)
+    HeaderBtnCorner.CornerRadius = UDim.new(0, 8)
     HeaderBtnCorner.Parent = HeaderBtn
 
+    -- Primary Event Map Connectors
     CloseBtn.MouseButton1Click:Connect(function()
+        cleanupConnections()
         MainGUI:Destroy()
-    end)
-
-    CloseBtn.MouseEnter:Connect(function()
-        CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
-    end)
-
-    CloseBtn.MouseLeave:Connect(function()
-        CloseBtn.BackgroundColor3 = RED_ACCENT
     end)
 
     MinimizeBtn.MouseButton1Click:Connect(function()
         MainBG.Visible = false
         HeaderBtn.Visible = true
-    end)
-
-    MinimizeBtn.MouseEnter:Connect(function()
-        MinimizeBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
-    end)
-
-    MinimizeBtn.MouseLeave:Connect(function()
-        MinimizeBtn.BackgroundColor3 = RED_ACCENT
     end)
 
     HeaderBtn.MouseButton1Click:Connect(function()
@@ -341,625 +288,316 @@ function SimpleLib:Window(winName)
     local LoadedSections = {}
 
     function Tabs:AddSection(SectionName)
-        -- Tab Button
         local Tab1 = Instance.new("ImageButton")
         Tab1.Name = SectionName
-        Tab1.Size = UDim2.new(0, 100, 0, 26)
-        Tab1.BorderColor3 = Color3.fromRGB(0, 0, 0)
+        Tab1.Size = UDim2.new(0, 95, 0, 24)
         Tab1.BackgroundColor3 = BG_MEDIUM
         Tab1.BorderSizePixel = 0
         Tab1.AutoButtonColor = false
         Tab1.Parent = TabsContainer
 
         local UICorner = Instance.new("UICorner")
-        UICorner.CornerRadius = UDim.new(0, 10)
+        UICorner.CornerRadius = UDim.new(0, 6)
         UICorner.Parent = Tab1
 
         local TabStroke = Instance.new("UIStroke")
         TabStroke.Color = RED_ACCENT
-        TabStroke.Thickness = 1.5
+        TabStroke.Thickness = 1
         TabStroke.Parent = Tab1
 
         local TabName = Instance.new("TextLabel")
-        TabName.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
-        TabName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        TabName.AnchorPoint = Vector2.new(0.5, 0.5)
-        TabName.ZIndex = 2
-        TabName.TextSize = 13
-        TabName.Size = UDim2.new(0, 80, 0, 14)
-        TabName.TextColor3 = TEXT_COLOR
-        TabName.BorderColor3 = Color3.fromRGB(0, 0, 0)
-        TabName.Text = SectionName
         TabName.Name = "TabName"
+        TabName.Text = SectionName
+        TabName.Font = Enum.Font.GothamBold
+        TabName.TextSize = 12
+        TabName.TextColor3 = TEXT_COLOR
+        TabName.Size = UDim2.new(1, 0, 1, 0)
         TabName.BackgroundTransparency = 1
-        TabName.Position = UDim2.new(0.5, 0, 0.5, 0)
-        TabName.TextWrapped = true
-        TabName.BorderSizePixel = 0
-        TabName.TextScaled = true
-        TabName.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         TabName.Parent = Tab1
 
         local Filler = Instance.new("Frame")
-        Filler.Active = true
-        Filler.BorderColor3 = Color3.fromRGB(0, 0, 0)
-        Filler.AnchorPoint = Vector2.new(0.5, 1)
         Filler.Name = "Filler"
+        Filler.AnchorPoint = Vector2.new(0.5, 1)
         Filler.Position = UDim2.new(0.5, 0, 1, 0)
-        Filler.Size = UDim2.new(1, 0, 0, 3)
-        Filler.Selectable = true
-        Filler.BorderSizePixel = 0
+        Filler.Size = UDim2.new(1, 0, 0, 2)
         Filler.BackgroundColor3 = RED_ACCENT
-        Filler.Parent = Tab1
+        Filler.BorderSizePixel = 0
         Filler.Visible = false
+        Filler.Parent = Tab1
 
         local Section = Instance.new("ScrollingFrame")
-        Section.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        Section.AnchorPoint = Vector2.new(0.5, 1)
-        Section.BorderSizePixel = 0
-        Section.CanvasSize = UDim2.new(0, 0, 0, 0)
-        Section.ScrollBarImageColor3 = RED_ACCENT
-        Section.MidImage = "rbxassetid://3062506202"
-        Section.BorderColor3 = Color3.fromRGB(0, 0, 0)
-        Section.ScrollBarThickness = 8
         Section.Name = SectionName
-        Section.Size = UDim2.new(1, -16, 0.85, 0)
-        Section.Selectable = false
-        Section.TopImage = "rbxassetid://3062506445"
-        Section.Position = UDim2.new(0.5, 0, 0.98, 0)
-        Section.BottomImage = "rbxassetid://3062505976"
         Section.BackgroundTransparency = 1
-        Section.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        Section.Parent = SectionContainer
+        Section.BorderSizePixel = 0
+        Section.Position = UDim2.new(0, 8, 0, 44)
+        Section.Size = UDim2.new(1, -16, 1, -52)
+        Section.ScrollBarThickness = 4
+        Section.ScrollBarImageColor3 = RED_ACCENT
+        Section.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        Section.CanvasSize = UDim2.new(0, 0, 0, 0)
         Section.Visible = false
+        Section.Parent = SectionContainer
 
         local UIListLayout = Instance.new("UIListLayout")
-        UIListLayout.Padding = UDim.new(0, 4)
+        UIListLayout.Padding = UDim.new(0, 6)
         UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
         UIListLayout.Parent = Section
 
         local SectionPadding = Instance.new("UIPadding")
-        SectionPadding.PaddingLeft = UDim.new(0, 8)
-        SectionPadding.PaddingRight = UDim.new(0, 8)
-        SectionPadding.PaddingTop = UDim.new(0, 6)
-        SectionPadding.PaddingBottom = UDim.new(0, 6)
+        SectionPadding.PaddingLeft = UDim.new(0, 4)
+        SectionPadding.PaddingRight = UDim.new(0, 4)
+        SectionPadding.PaddingTop = UDim.new(0, 4)
+        SectionPadding.PaddingBottom = UDim.new(0, 4)
         SectionPadding.Parent = Section
 
         table.insert(LoadedSections, Section)
 
         Tab1.MouseButton1Click:Connect(function()
-            for i, v in pairs(LoadedSections) do
+            for _, v in ipairs(LoadedSections) do
                 v.Visible = false
-                if TabsContainer:FindFirstChild(v.Name) then
-                    TabsContainer[v.Name].BackgroundColor3 = BG_MEDIUM
-                    TabsContainer[v.Name].Filler.Visible = false
+                local tBtn = TabsContainer:FindFirstChild(v.Name)
+                if tBtn then
+                    tBtn.BackgroundColor3 = BG_MEDIUM
+                    tBtn.Filler.Visible = false
                 end
             end
-
             Section.Visible = true
             Tab1.BackgroundColor3 = BG_DARK
             Filler.Visible = true
         end)
 
-        Tab1.MouseEnter:Connect(function()
-            if Section.Visible == false then
-                Tab1.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-            end
-        end)
-
-        Tab1.MouseLeave:Connect(function()
-            if Section.Visible == false then
-                Tab1.BackgroundColor3 = BG_MEDIUM
-            end
-        end)
-
         local Contents = {}
+
+        -- Universal Element Tweener Helper
+        local function bindHoverStates(instance, stroke)
+            trackConnection(instance.MouseEnter:Connect(function()
+                fastTween(instance, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 68)})
+                if stroke then fastTween(stroke, TweenInfo.new(0.2), {Color = RED_LIGHT}) end
+            end))
+            trackConnection(instance.MouseLeave:Connect(function()
+                fastTween(instance, TweenInfo.new(0.2), {BackgroundColor3 = BG_MEDIUM})
+                if stroke then fastTween(stroke, TweenInfo.new(0.2), {Color = RED_ACCENT}) end
+            end))
+        end
 
         function Contents:Button(lbltxt, cb)
             local BtnInstance = Instance.new("ImageButton")
             BtnInstance.Name = "BtnInstance"
-            BtnInstance.Size = UDim2.new(1, 0, 0, 40)
-            BtnInstance.BorderColor3 = Color3.fromRGB(0, 0, 0)
+            BtnInstance.Size = UDim2.new(1, 0, 0, 38)
             BtnInstance.BackgroundColor3 = BG_MEDIUM
             BtnInstance.BorderSizePixel = 0
             BtnInstance.AutoButtonColor = false
             BtnInstance.Parent = Section
 
             local BtnCorner = Instance.new("UICorner")
-            BtnCorner.Name = "BtnCorner"
-            BtnCorner.CornerRadius = UDim.new(0, 10)
+            BtnCorner.CornerRadius = UDim.new(0, 8)
             BtnCorner.Parent = BtnInstance
 
             local BtnName = Instance.new("TextLabel")
-            BtnName.TextWrapped = true
-            BtnName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            BtnName.AnchorPoint = Vector2.new(0.5, 0.5)
-            BtnName.ZIndex = 2
-            BtnName.TextSize = 13
-            BtnName.Size = UDim2.new(0.9, 0, 0.6, 0)
-            BtnName.TextColor3 = TEXT_COLOR
-            BtnName.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            BtnName.Text = lbltxt
             BtnName.Name = "BtnName"
-            BtnName.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
-            BtnName.BackgroundTransparency = 1
+            BtnName.Text = lbltxt
+            BtnName.Font = Enum.Font.GothamMedium
+            BtnName.TextSize = 13
+            BtnName.TextColor3 = TEXT_COLOR
             BtnName.TextXAlignment = Enum.TextXAlignment.Left
-            BtnName.Position = UDim2.new(0.55, 0, 0.5, 0)
-            BtnName.BorderSizePixel = 0
-            BtnName.TextScaled = true
-            BtnName.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            BtnName.Position = UDim2.new(0, 36, 0, 0)
+            BtnName.Size = UDim2.new(1, -42, 1, 0)
+            BtnName.BackgroundTransparency = 1
             BtnName.Parent = BtnInstance
 
             local BtnStroke = Instance.new("UIStroke")
             BtnStroke.Color = RED_ACCENT
-            BtnStroke.Name = "BtnStroke"
-            BtnStroke.Thickness = 1.5
-            BtnStroke.BorderStrokePosition = Enum.BorderStrokePosition.Inner
+            BtnStroke.Thickness = 1
+            BtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
             BtnStroke.Parent = BtnInstance
 
             local BtnIco = Instance.new("ImageLabel")
             BtnIco.Name = "BtnIco"
-            BtnIco.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            BtnIco.ImageRectOffset = Vector2.new(0, 152)
-            BtnIco.Size = UDim2.new(0, 20, 0, 20)
-            BtnIco.Position = UDim2.new(0.08, 0, 0.5, 0)
-            BtnIco.AnchorPoint = Vector2.new(0.5, 0.5)
+            BtnIco.Size = UDim2.new(0, 18, 0, 18)
+            BtnIco.Position = UDim2.new(0, 10, 0.5, -9)
             BtnIco.Image = "rbxassetid://16884178577"
-            BtnIco.BackgroundTransparency = 1
+            BtnIco.ImageRectOffset = Vector2.new(0, 152)
             BtnIco.ImageRectSize = Vector2.new(36, 36)
-            BtnIco.ZIndex = 2
             BtnIco.ImageColor3 = RED_ACCENT
-            BtnIco.BorderSizePixel = 0
-            BtnIco.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            BtnIco.BackgroundTransparency = 1
             BtnIco.Parent = BtnInstance
 
-            BtnInstance.MouseEnter:Connect(function()
-                BtnInstance.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-                BtnStroke.Color = RED_LIGHT
-            end)
-
-            BtnInstance.MouseLeave:Connect(function()
-                BtnInstance.BackgroundColor3 = BG_MEDIUM
-                BtnStroke.Color = RED_ACCENT
-            end)
-
-            BtnInstance.MouseButton1Click:Connect(function()
+            bindHoverStates(BtnInstance, BtnStroke)
+            trackConnection(BtnInstance.MouseButton1Click:Connect(function()
                 pcall(cb)
-            end)
+            end))
         end
 
-        function Contents:Label(lbltxt, cb)
-            local LabelInstance = Instance.new("ImageButton")
+        function Contents:Label(lbltxt)
+            local LabelInstance = Instance.new("Frame")
             LabelInstance.Name = "LabelInstance"
-            LabelInstance.Size = UDim2.new(1, 0, 0, 40)
-            LabelInstance.BorderColor3 = Color3.fromRGB(0, 0, 0)
+            LabelInstance.Size = UDim2.new(1, 0, 0, 34)
             LabelInstance.BackgroundColor3 = BG_MEDIUM
             LabelInstance.BorderSizePixel = 0
-            LabelInstance.AutoButtonColor = false
             LabelInstance.Parent = Section
 
             local LabelCorner = Instance.new("UICorner")
-            LabelCorner.Name = "LabelCorner"
-            LabelCorner.CornerRadius = UDim.new(0, 10)
+            LabelCorner.CornerRadius = UDim.new(0, 8)
             LabelCorner.Parent = LabelInstance
 
             local LabelName = Instance.new("TextLabel")
-            LabelName.TextWrapped = true
-            LabelName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            LabelName.AnchorPoint = Vector2.new(0.5, 0.5)
-            LabelName.ZIndex = 2
-            LabelName.TextSize = 13
-            LabelName.Size = UDim2.new(0.9, 0, 0.6, 0)
-            LabelName.TextColor3 = TEXT_COLOR
-            LabelName.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            LabelName.Text = lbltxt
             LabelName.Name = "LabelName"
-            LabelName.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
-            LabelName.BackgroundTransparency = 1
+            LabelName.Text = lbltxt
+            LabelName.Font = Enum.Font.GothamMedium
+            LabelName.TextSize = 13
+            LabelName.TextColor3 = TEXT_COLOR
             LabelName.TextXAlignment = Enum.TextXAlignment.Left
-            LabelName.Position = UDim2.new(0.55, 0, 0.5, 0)
-            LabelName.BorderSizePixel = 0
-            LabelName.TextScaled = true
-            LabelName.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            LabelName.Position = UDim2.new(0, 36, 0, 0)
+            LabelName.Size = UDim2.new(1, -42, 1, 0)
+            LabelName.BackgroundTransparency = 1
             LabelName.Parent = LabelInstance
 
             local LabelStroke = Instance.new("UIStroke")
-            LabelStroke.Color = RED_ACCENT
-            LabelStroke.Name = "LabelStroke"
-            LabelStroke.Thickness = 1.5
-            LabelStroke.BorderStrokePosition = Enum.BorderStrokePosition.Inner
+            LabelStroke.Color = RED_DARK
+            LabelStroke.Thickness = 1
             LabelStroke.Parent = LabelInstance
 
             local LabelIco = Instance.new("ImageLabel")
             LabelIco.Name = "LabelIco"
-            LabelIco.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            LabelIco.ImageRectOffset = Vector2.new(418, 0)
-            LabelIco.Size = UDim2.new(0, 20, 0, 20)
-            LabelIco.Position = UDim2.new(0.08, 0, 0.5, 0)
-            LabelIco.AnchorPoint = Vector2.new(0.5, 0.5)
+            LabelIco.Size = UDim2.new(0, 18, 0, 18)
+            LabelIco.Position = UDim2.new(0, 10, 0.5, -9)
             LabelIco.Image = "rbxassetid://16884178261"
-            LabelIco.BackgroundTransparency = 1
+            LabelIco.ImageRectOffset = Vector2.new(418, 0)
             LabelIco.ImageRectSize = Vector2.new(36, 36)
-            LabelIco.ZIndex = 2
             LabelIco.ImageColor3 = RED_ACCENT
-            LabelIco.BorderSizePixel = 0
-            LabelIco.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            LabelIco.BackgroundTransparency = 1
             LabelIco.Parent = LabelInstance
 
             local upd = {}
-
             function upd:Update(newtxt)
                 LabelName.Text = newtxt
             end
-
             return upd
         end
 
         function Contents:Toggle(lbltxt, val, cb)
             local ToggleInstance = Instance.new("ImageButton")
             ToggleInstance.Name = "ToggleInstance"
-            ToggleInstance.Size = UDim2.new(1, 0, 0, 40)
-            ToggleInstance.BorderColor3 = Color3.fromRGB(0, 0, 0)
+            ToggleInstance.Size = UDim2.new(1, 0, 0, 38)
             ToggleInstance.BackgroundColor3 = BG_MEDIUM
             ToggleInstance.BorderSizePixel = 0
             ToggleInstance.AutoButtonColor = false
             ToggleInstance.Parent = Section
 
             local ToggleCorner = Instance.new("UICorner")
-            ToggleCorner.Name = "ToggleCorner"
-            ToggleCorner.CornerRadius = UDim.new(0, 10)
+            ToggleCorner.CornerRadius = UDim.new(0, 8)
             ToggleCorner.Parent = ToggleInstance
 
             local ToggleName = Instance.new("TextLabel")
-            ToggleName.TextWrapped = true
-            ToggleName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            ToggleName.AnchorPoint = Vector2.new(0.5, 0.5)
-            ToggleName.ZIndex = 2
-            ToggleName.TextSize = 13
-            ToggleName.Size = UDim2.new(0.9, 0, 0.6, 0)
-            ToggleName.TextColor3 = TEXT_COLOR
-            ToggleName.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            ToggleName.Text = lbltxt
             ToggleName.Name = "ToggleName"
-            ToggleName.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
-            ToggleName.BackgroundTransparency = 1
+            ToggleName.Text = lbltxt
+            ToggleName.Font = Enum.Font.GothamMedium
+            ToggleName.TextSize = 13
+            ToggleName.TextColor3 = TEXT_COLOR
             ToggleName.TextXAlignment = Enum.TextXAlignment.Left
-            ToggleName.Position = UDim2.new(0.55, 0, 0.5, 0)
-            ToggleName.BorderSizePixel = 0
-            ToggleName.TextScaled = true
-            ToggleName.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            ToggleName.Position = UDim2.new(0, 36, 0, 0)
+            ToggleName.Size = UDim2.new(1, -42, 1, 0)
+            ToggleName.BackgroundTransparency = 1
             ToggleName.Parent = ToggleInstance
 
             local ToggleStroke = Instance.new("UIStroke")
             ToggleStroke.Color = RED_ACCENT
-            ToggleStroke.Name = "ToggleStroke"
-            ToggleStroke.Thickness = 1.5
-            ToggleStroke.BorderStrokePosition = Enum.BorderStrokePosition.Inner
+            ToggleStroke.Thickness = 1
             ToggleStroke.Parent = ToggleInstance
 
-            local ToggleOff = Instance.new("ImageLabel")
-            ToggleOff.Name = "ToggleOff"
-            ToggleOff.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            ToggleOff.ImageRectOffset = Vector2.new(248, 462)
-            ToggleOff.Size = UDim2.new(0, 20, 0, 20)
-            ToggleOff.Position = UDim2.new(0.08, 0, 0.5, 0)
-            ToggleOff.AnchorPoint = Vector2.new(0.5, 0.5)
-            ToggleOff.Image = "rbxassetid://16167590639"
-            ToggleOff.BackgroundTransparency = 1
-            ToggleOff.ImageRectSize = Vector2.new(36, 36)
-            ToggleOff.ZIndex = 2
-            ToggleOff.ImageColor3 = RED_ACCENT
-            ToggleOff.BorderSizePixel = 0
-            ToggleOff.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            ToggleOff.Parent = ToggleInstance
-            ToggleOff.Visible = false
-
-            local ToggleOn = Instance.new("ImageLabel")
-            ToggleOn.Visible = false
-            ToggleOn.Name = "ToggleOn"
-            ToggleOn.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            ToggleOn.ImageRectOffset = Vector2.new(286, 386)
-            ToggleOn.Size = UDim2.new(0, 20, 0, 20)
-            ToggleOn.Position = UDim2.new(0.08, 0, 0.5, 0)
-            ToggleOn.AnchorPoint = Vector2.new(0.5, 0.5)
-            ToggleOn.Image = "rbxassetid://16167590639"
-            ToggleOn.BackgroundTransparency = 1
-            ToggleOn.ImageRectSize = Vector2.new(36, 36)
-            ToggleOn.ZIndex = 2
-            ToggleOn.ImageColor3 = RED_LIGHT
-            ToggleOn.BorderSizePixel = 0
-            ToggleOn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            ToggleOn.Parent = ToggleInstance
+            local Icon = Instance.new("ImageLabel")
+            Icon.Name = "ToggleIcon"
+            Icon.Size = UDim2.new(0, 18, 0, 18)
+            Icon.Position = UDim2.new(0, 10, 0.5, -9)
+            Icon.Image = "rbxassetid://16167590639"
+            Icon.BackgroundTransparency = 1
+            Icon.Parent = ToggleInstance
 
             local toggled = val
-            if val then
-                ToggleOn.Visible = true
-                pcall(cb, toggled)
-            else
-                ToggleOff.Visible = true
-            end
-
-            ToggleInstance.MouseEnter:Connect(function()
-                ToggleInstance.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-                ToggleStroke.Color = RED_LIGHT
-            end)
-
-            ToggleInstance.MouseLeave:Connect(function()
-                ToggleInstance.BackgroundColor3 = BG_MEDIUM
-                ToggleStroke.Color = RED_ACCENT
-            end)
-
-            ToggleInstance.MouseButton1Click:Connect(function()
-                toggled = not toggled
+            local function updateToggleVisuals()
                 if toggled then
-                    ToggleOn.Visible = true
-                    ToggleOff.Visible = false
+                    Icon.ImageRectOffset = Vector2.new(286, 386)
+                    Icon.ImageColor3 = RED_LIGHT
                 else
-                    ToggleOff.Visible = true
-                    ToggleOn.Visible = false
+                    Icon.ImageRectOffset = Vector2.new(248, 462)
+                    Icon.ImageColor3 = RED_ACCENT
                 end
+                Icon.ImageRectSize = Vector2.new(36, 36)
+            end
+            updateToggleVisuals()
+
+            bindHoverStates(ToggleInstance, ToggleStroke)
+            
+            trackConnection(ToggleInstance.MouseButton1Click:Connect(function()
+                toggled = not toggled
+                updateToggleVisuals()
                 pcall(cb, toggled)
-            end)
+            end))
         end
 
-        function Contents:TextBox(lbltxt, sort, cb)
-            local TextBoxInstance = Instance.new("ImageButton")
-            TextBoxInstance.Size = UDim2.new(1, 0, 0, 50)
+        function Contents:TextBox(lbltxt, cb)
+            local TextBoxInstance = Instance.new("Frame")
             TextBoxInstance.Name = "TextBoxInstance"
-            TextBoxInstance.BorderColor3 = Color3.fromRGB(0, 0, 0)
+            TextBoxInstance.Size = UDim2.new(1, 0, 0, 48)
             TextBoxInstance.BackgroundColor3 = BG_MEDIUM
             TextBoxInstance.BorderSizePixel = 0
-            TextBoxInstance.AutoButtonColor = false
             TextBoxInstance.Parent = Section
 
             local TextBoxCorner = Instance.new("UICorner")
-            TextBoxCorner.Name = "TextBoxCorner"
-            TextBoxCorner.CornerRadius = UDim.new(0, 10)
+            TextBoxCorner.CornerRadius = UDim.new(0, 8)
             TextBoxCorner.Parent = TextBoxInstance
 
             local TextBoxName = Instance.new("TextLabel")
-            TextBoxName.TextWrapped = true
-            TextBoxName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            TextBoxName.AnchorPoint = Vector2.new(0, 0)
-            TextBoxName.ZIndex = 2
-            TextBoxName.TextSize = 13
-            TextBoxName.Size = UDim2.new(0.9, 0, 0.4, 0)
-            TextBoxName.TextColor3 = TEXT_COLOR
-            TextBoxName.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            TextBoxName.Text = lbltxt
             TextBoxName.Name = "TextBoxName"
-            TextBoxName.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
-            TextBoxName.BackgroundTransparency = 1
+            TextBoxName.Text = lbltxt
+            TextBoxName.Font = Enum.Font.GothamBold
+            TextBoxName.TextSize = 11
+            TextBoxName.TextColor3 = RED_LIGHT
             TextBoxName.TextXAlignment = Enum.TextXAlignment.Left
-            TextBoxName.Position = UDim2.new(0.05, 0, 0.05, 0)
-            TextBoxName.BorderSizePixel = 0
-            TextBoxName.TextScaled = true
-            TextBoxName.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            TextBoxName.Position = UDim2.new(0, 12, 0, 4)
+            TextBoxName.Size = UDim2.new(1, -24, 0, 16)
+            TextBoxName.BackgroundTransparency = 1
             TextBoxName.Parent = TextBoxInstance
 
-            local TextBoxStroke = Instance.new("UIStroke")
-            TextBoxStroke.Color = RED_ACCENT
-            TextBoxStroke.Name = "TextBoxStroke"
-            TextBoxStroke.Thickness = 1.5
-            TextBoxStroke.BorderStrokePosition = Enum.BorderStrokePosition.Inner
-            TextBoxStroke.Parent = TextBoxInstance
-
             local TextBoxFrame = Instance.new("Frame")
-            TextBoxFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            TextBoxFrame.AnchorPoint = Vector2.new(0, 0)
             TextBoxFrame.Name = "TextBoxFrame"
             TextBoxFrame.BackgroundColor3 = BG_DARK
-            TextBoxFrame.Position = UDim2.new(0.05, 0, 0.48, 0)
-            TextBoxFrame.Size = UDim2.new(0.9, 0, 0.45, 0)
-            TextBoxFrame.ZIndex = 2
-            TextBoxFrame.BorderSizePixel = 0
+            TextBoxFrame.Position = UDim2.new(0, 12, 0, 22)
+            TextBoxFrame.Size = UDim2.new(1, -24, 0, 20)
             TextBoxFrame.Parent = TextBoxInstance
 
             local TBFCORNER = Instance.new("UICorner")
-            TBFCORNER.Name = "TBFCORNER"
-            TBFCORNER.CornerRadius = UDim.new(0, 8)
+            TBFCORNER.CornerRadius = UDim.new(0, 4)
             TBFCORNER.Parent = TextBoxFrame
 
             local TBFSTROKE = Instance.new("UIStroke")
             TBFSTROKE.Color = RED_ACCENT
-            TBFSTROKE.Name = "TBFSTROKE"
-            TBFSTROKE.Thickness = 1.5
-            TBFSTROKE.BorderStrokePosition = Enum.BorderStrokePosition.Inner
+            TBFSTROKE.Thickness = 1
             TBFSTROKE.Parent = TextBoxFrame
 
             local TextBoxInput = Instance.new("TextBox")
-            TextBoxInput.CursorPosition = -1
-            TextBoxInput.Active = false
-            TextBoxInput.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            TextBoxInput.AnchorPoint = Vector2.new(0, 0.5)
-            TextBoxInput.PlaceholderText = "Type here..."
-            TextBoxInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
-            TextBoxInput.TextSize = 13
-            TextBoxInput.Size = UDim2.new(0.95, 0, 0.8, 0)
             TextBoxInput.Name = "TextBoxInput"
-            TextBoxInput.ZIndex = 2
-            TextBoxInput.TextColor3 = TEXT_COLOR
-            TextBoxInput.BorderColor3 = Color3.fromRGB(0, 0, 0)
             TextBoxInput.Text = ""
-            TextBoxInput.Selectable = false
-            TextBoxInput.Position = UDim2.new(0.025, 0, 0.5, 0)
-            TextBoxInput.BorderSizePixel = 0
-            TextBoxInput.FontFace = Font.new("rbxasset://fonts/families/Gotham.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-            TextBoxInput.BackgroundTransparency = 1
+            TextBoxInput.PlaceholderText = "Type here..."
+            TextBoxInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+            TextBoxInput.TextColor3 = TEXT_COLOR
+            TextBoxInput.Font = Enum.Font.Gotham
+            TextBoxInput.TextSize = 12
             TextBoxInput.TextXAlignment = Enum.TextXAlignment.Left
-            TextBoxInput.TextWrapped = false
-            TextBoxInput.ClearTextOnFocus = false
-            TextBoxInput.TextScaled = false
-            TextBoxInput.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            TextBoxInput.Size = UDim2.new(1, -10, 1, 0)
+            TextBoxInput.Position = UDim2.new(0, 5, 0, 0)
+            TextBoxInput.BackgroundTransparency = 1
+            TextBoxInput.ClipsDescendants = true
             TextBoxInput.Parent = TextBoxFrame
 
-            TextBoxInstance.MouseEnter:Connect(function()
-                TextBoxInstance.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-                TextBoxStroke.Color = RED_LIGHT
-            end)
+            trackConnection(TextBoxInput.Focused:Connect(function()
+                fastTween(TBFSTROKE, TweenInfo.new(0.2), {Color = RED_LIGHT})
+            end))
 
-            TextBoxInstance.MouseLeave:Connect(function()
-                TextBoxInstance.BackgroundColor3 = BG_MEDIUM
-                TextBoxStroke.Color = RED_ACCENT
-            end)
-
-            if sort == 1 then
-                TextBoxInput:GetPropertyChangedSignal("Text"):Connect(function()
-                    pcall(cb, TextBoxInput.Text)
-                end)
-            elseif sort == 2 then
-                TextBoxInput.FocusLost:Connect(function()
-                    pcall(cb, TextBoxInput.Text)
-                end)
-            elseif sort == 3 then
-                TextBoxInput.FocusLost:Connect(function(ep)
-                    if ep then
-                        pcall(cb, TextBoxInput.Text)
-                    end
-                end)
-            else
-                warn("[SIMPLE LIB]: TextBox requires a valid sort mode: 1 = TextChanged, 2 = FocusLost, 3 = EnterPressed.")
-            end
-        end
-
-        function Contents:Slider(lbltxt, min, max, norm, cb)
-            local SliderInstance = Instance.new("ImageButton")
-            SliderInstance.Size = UDim2.new(1, 0, 0, 50)
-            SliderInstance.Name = "SliderInstance"
-            SliderInstance.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            SliderInstance.BackgroundColor3 = BG_MEDIUM
-            SliderInstance.BorderSizePixel = 0
-            SliderInstance.AutoButtonColor = false
-            SliderInstance.Parent = Section
-
-            local SliderCorner = Instance.new("UICorner")
-            SliderCorner.Name = "SliderCorner"
-            SliderCorner.CornerRadius = UDim.new(0, 10)
-            SliderCorner.Parent = SliderInstance
-
-            local SliderName = Instance.new("TextLabel")
-            SliderName.TextWrapped = true
-            SliderName.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            SliderName.AnchorPoint = Vector2.new(0, 0)
-            SliderName.ZIndex = 2
-            SliderName.TextSize = 13
-            SliderName.Size = UDim2.new(0.9, 0, 0.4, 0)
-            SliderName.TextColor3 = TEXT_COLOR
-            SliderName.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            SliderName.Text = lbltxt
-            SliderName.Name = "SliderName"
-            SliderName.FontFace = Font.new("rbxasset://fonts/families/GothamBold.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
-            SliderName.BackgroundTransparency = 1
-            SliderName.TextXAlignment = Enum.TextXAlignment.Left
-            SliderName.Position = UDim2.new(0.05, 0, 0.05, 0)
-            SliderName.BorderSizePixel = 0
-            SliderName.TextScaled = true
-            SliderName.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            SliderName.Parent = SliderInstance
-
-            local SliderStroke = Instance.new("UIStroke")
-            SliderStroke.Color = RED_ACCENT
-            SliderStroke.Name = "SliderStroke"
-            SliderStroke.Thickness = 1.5
-            SliderStroke.BorderStrokePosition = Enum.BorderStrokePosition.Inner
-            SliderStroke.Parent = SliderInstance
-
-            local SliderBG = Instance.new("Frame")
-            SliderBG.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            SliderBG.AnchorPoint = Vector2.new(0, 0)
-            SliderBG.Name = "SliderBG"
-            SliderBG.BackgroundColor3 = BG_DARK
-            SliderBG.Position = UDim2.new(0.05, 0, 0.48, 0)
-            SliderBG.Size = UDim2.new(0.9, 0, 0.35, 0)
-            SliderBG.ZIndex = 2
-            SliderBG.BorderSizePixel = 0
-            SliderBG.Parent = SliderInstance
-
-            local SFCORNER = Instance.new("UICorner")
-            SFCORNER.Name = "SFCORNER"
-            SFCORNER.CornerRadius = UDim.new(0, 8)
-            SFCORNER.Parent = SliderBG
-
-            local SFSTROKE = Instance.new("UIStroke")
-            SFSTROKE.Color = RED_ACCENT
-            SFSTROKE.Name = "SFSTROKE"
-            SFSTROKE.Thickness = 1.5
-            SFSTROKE.BorderStrokePosition = Enum.BorderStrokePosition.Inner
-            SFSTROKE.Parent = SliderBG
-
-            local SliderInput = Instance.new("Frame")
-            SliderInput.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            SliderInput.AnchorPoint = Vector2.new(0, 0.5)
-            SliderInput.Name = "SliderInput"
-            SliderInput.Position = UDim2.new(0, 0, 0.5, 0)
-            SliderInput.Size = UDim2.new(0, 0, 1, 0)
-            SliderInput.ZIndex = 3
-            SliderInput.BorderSizePixel = 0
-            SliderInput.BackgroundColor3 = RED_ACCENT
-            SliderInput.Parent = SliderBG
-
-            local SICORNER = Instance.new("UICorner")
-            SICORNER.Name = "SICORNER"
-            SICORNER.CornerRadius = UDim.new(0, 6)
-            SICORNER.Parent = SliderInput
-
-            SliderInstance.MouseEnter:Connect(function()
-                SliderInstance.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-                SliderStroke.Color = RED_LIGHT
-            end)
-
-            SliderInstance.MouseLeave:Connect(function()
-                SliderInstance.BackgroundColor3 = BG_MEDIUM
-                SliderStroke.Color = RED_ACCENT
-            end)
-
-            local dragging = false
-            local lastValue = 0
-
-            local function setFromAlpha(alpha)
-                alpha = math.clamp(alpha, 0, 1)
-                local value = math.floor(min + (max - min) * alpha + 0.5)
-
-                SliderInput.Size = UDim2.new(alpha, 0, 1, 0)
-
-                lastValue = value
-            end
-
-            local function updateFromInput(x)
-                local rel = (x - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X
-                setFromAlpha(rel)
-            end
-
-            setFromAlpha((norm - min) / (max - min))
-
-            SliderBG.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1
-                    or input.UserInputType == Enum.UserInputType.Touch then
-
-                    dragging = true
-                    sliderInUse = true
-                    updateFromInput(input.Position.X)
-                end
-            end)
-
-            UIS.InputChanged:Connect(function(input)
-                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-                    or input.UserInputType == Enum.UserInputType.Touch) then
-
-                    updateFromInput(input.Position.X)
-                end
-            end)
-
-            UIS.InputEnded:Connect(function(input)
-                if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1
-                    or input.UserInputType == Enum.UserInputType.Touch) then
-
-                    dragging = false
-                    sliderInUse = false
-                    if cb then
-                        pcall(cb, lastValue)
-                    end
-                end
-            end)
+            trackConnection(TextBoxInput.FocusLost:Connect(function(enterPressed)
+                fastTween(TBFSTROKE, TweenInfo.new(0.2), {Color = RED_ACCENT})
+                pcall(cb, TextBoxInput.Text, enterPressed)
+            end))
         end
 
         return Contents
