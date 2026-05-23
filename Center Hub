@@ -1,0 +1,9 @@
+local SimpleLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Partvision/scriptrepo/refs/heads/main/ModernUI%202.0"))()
+local Window = SimpleLib:Window("Brainrot Hub")
+local Tab1 = Window:AddSection("Center")
+
+Tab1:Label("Make sure you Move the hub before executing a script inside here!")
+
+Tab1:Button("Get HEAVY for Brainrots (OLD UI)", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Partvision/scriptrepo/refs/heads/main/Brainrot%20Hub%20Weight%20Game"))()
+end)
