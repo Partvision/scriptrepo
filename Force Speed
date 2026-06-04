@@ -1,0 +1,186 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- Variables
+local LocalPlayer = Players.LocalPlayer
+local targetSpeed = 16
+local isEnabled = false
+local speedConnection = nil
+
+-- Create GUI Elements
+local SpeedGUI = Instance.new("ScreenGui")
+SpeedGUI.Name = "SpeedForceGUI"
+SpeedGUI.ResetOnSpawn = false
+
+-- Use CoreGui if available (executors usually have access), otherwise fallback to PlayerGui
+local success, err = pcall(function()
+    SpeedGUI.Parent = CoreGui
+end)
+if not success then
+    SpeedGUI.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = SpeedGUI
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MainFrame.Position = UDim2.new(0.5, -100, 0.5, -75)
+MainFrame.Size = UDim2.new(0, 200, 0, 150)
+MainFrame.BorderSizePixel = 0
+
+local UICorner = Instance.new("UICorner")
+UICorner.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Speed Forcer"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.BorderSizePixel = 0
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.Parent = Title
+
+local SpeedInput = Instance.new("TextBox")
+SpeedInput.Name = "SpeedInput"
+SpeedInput.Parent = MainFrame
+SpeedInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+SpeedInput.Position = UDim2.new(0.1, 0, 0.35, 0)
+SpeedInput.Size = UDim2.new(0.8, 0, 0, 30)
+SpeedInput.Font = Enum.Font.Gotham
+SpeedInput.PlaceholderText = "Enter Speed (e.g. 50)"
+SpeedInput.Text = ""
+SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedInput.TextSize = 14
+
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Parent = MainFrame
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.6, 0)
+ToggleBtn.Size = UDim2.new(0.35, 0, 0, 30)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Text = "Start"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 14
+
+local DestroyBtn = Instance.new("TextButton")
+DestroyBtn.Name = "DestroyBtn"
+DestroyBtn.Parent = MainFrame
+DestroyBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+DestroyBtn.Position = UDim2.new(0.55, 0, 0.6, 0)
+DestroyBtn.Size = UDim2.new(0.35, 0, 0, 30)
+DestroyBtn.Font = Enum.Font.GothamBold
+DestroyBtn.Text = "Destroy"
+DestroyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DestroyBtn.TextSize = 14
+
+-- Add corners to buttons
+Instance.new("UICorner").Parent = SpeedInput
+Instance.new("UICorner").Parent = ToggleBtn
+Instance.new("UICorner").Parent = DestroyBtn
+
+-- Logic: Draggable GUI
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function updateDrag(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        updateDrag(input)
+    end
+end)
+
+-- Logic: Speed Spamming Loop
+local function updateSpeed()
+    if isEnabled then
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("Humanoid") then
+            character.Humanoid.WalkSpeed = targetSpeed
+        end
+    end
+end
+
+-- Input updating
+SpeedInput.FocusLost:Connect(function()
+    local num = tonumber(SpeedInput.Text)
+    if num then
+        targetSpeed = num
+    else
+        SpeedInput.Text = tostring(targetSpeed) -- Revert to last valid number
+    end
+end)
+
+-- Toggle Button Logic
+ToggleBtn.MouseButton1Click:Connect(function()
+    isEnabled = not isEnabled
+    if isEnabled then
+        ToggleBtn.Text = "Stop"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 170, 0)
+        
+        -- Start spamming speed every frame
+        if speedConnection then speedConnection:Disconnect() end
+        speedConnection = RunService.Heartbeat:Connect(updateSpeed)
+    else
+        ToggleBtn.Text = "Start"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        
+        -- Stop spamming and reset to default
+        if speedConnection then
+            speedConnection:Disconnect()
+            speedConnection = nil
+        end
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("Humanoid") then
+            character.Humanoid.WalkSpeed = 16 -- Default Roblox Speed
+        end
+    end
+end)
+
+-- Destroy Button Logic
+DestroyBtn.MouseButton1Click:Connect(function()
+    isEnabled = false
+    if speedConnection then
+        speedConnection:Disconnect()
+    end
+    
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.WalkSpeed = 16
+    end
+    
+    SpeedGUI:Destroy()
+end)
